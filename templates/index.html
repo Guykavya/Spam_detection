@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Spam Detection System - BCA Minor Project</title>
+    <style>
+        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background: #f4f7f9; margin: 0; padding: 40px 20px; color: #2d3748; }
+        .container { max-width: 800px; margin: 0 auto; background: #ffffff; padding: 36px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        
+        .header { text-align: center; border-bottom: 2px solid #edf2f7; padding-bottom: 20px; margin-bottom: 24px; }
+        .header h1 { margin: 0; font-size: 24px; color: #1a202c; font-weight: 700; }
+        .header p { margin: 8px 0 0; font-size: 13px; color: #718096; font-weight: 500; }
+        
+        .tabs { display: flex; gap: 12px; margin-bottom: 24px; background: #edf2f7; padding: 4px; border-radius: 8px; }
+        .tab-btn { flex: 1; padding: 12px; border: none; background: transparent; color: #4a5568; font-weight: 600; border-radius: 6px; cursor: pointer; transition: all 0.2s ease; }
+        .tab-btn.active { background: #ffffff; color: #2b6cb0; box-shadow: 0 2px 4px rgba(0,0,0,0.06); }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        .form-group { margin-bottom: 18px; }
+        label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 14px; color: #2d3748; }
+        input[type="text"], textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e0; border-radius: 8px; font-size: 14px; transition: border-color 0.2s; }
+        input[type="text"]:focus, textarea:focus { outline: none; border-color: #3182ce; box-shadow: 0 0 0 3px rgba(66,153,225,0.15); }
+        
+        button.submit-btn { width: 100%; padding: 12px; background: #3182ce; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 15px; transition: background 0.2s; }
+        button.submit-btn:hover { background: #2b6cb0; }
+        
+        .result-card { margin-top: 24px; padding: 20px; border-radius: 8px; background: #f7fafc; border: 1px solid #e2e8f0; display: none; }
+        .badge { padding: 6px 12px; border-radius: 20px; font-weight: 700; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; display: inline-block; }
+        .badge.spam { background: #fed7d7; color: #c53030; }
+        .badge.not_spam { background: #c6f6d5; color: #22543d; }
+        
+        .auth-box { text-align: center; padding: 24px 0; }
+        .btn-google { background: #4285F4; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block; transition: background 0.2s; }
+        .btn-google:hover { background: #3367d6; }
+
+        table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 16px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+        th, td { padding: 12px 16px; text-align: left; }
+        th { background: #edf2f7; font-weight: 600; font-size: 13px; color: #4a5568; }
+        td { border-top: 1px solid #e2e8f0; font-size: 14px; }
+        tr:hover td { background: #f7fafc; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>Email Spam Detection System</h1>
+        <p>BCA Minor Project | Microservice Architecture (Go + Python)</p>
+    </div>
+    
+    <div class="tabs">
+        <button id="btn-manual" class="tab-btn {{ if ne .ActiveTab "gmail" }}active{{ end }}" onclick="switchTab('manual')">Manual Text Analysis</button>
+        <button id="btn-gmail" class="tab-btn {{ if eq .ActiveTab "gmail" }}active{{ end }}" onclick="switchTab('gmail')">Gmail OAuth Integration</button>
+    </div>
+
+    <!-- Tab 1: Manual Analysis -->
+    <div id="manual" class="tab-content {{ if ne .ActiveTab "gmail" }}active{{ end }}">
+        <form id="manualForm">
+            <div class="form-group">
+                <label for="subject">Email Subject</label>
+                <input type="text" id="subject" placeholder="e.g., Important update regarding your account" required>
+            </div>
+            <div class="form-group">
+                <label for="body">Email Body Content</label>
+                <textarea id="body" rows="5" placeholder="Paste full email text here..." required></textarea>
+            </div>
+            <button type="submit" class="submit-btn">Run ML Classification</button>
+        </form>
+
+        <div id="resultCard" class="result-card">
+            <h3 style="margin-top: 0; font-size: 16px; color: #2d3748;">Analysis Output</h3>
+            <p style="margin: 8px 0;">Classification: <span id="labelBadge" class="badge"></span></p>
+            <p style="margin: 8px 0;">Spam Probability: <strong id="spamProb"></strong></p>
+            <p style="font-size: 12px; color: #a0aec0; margin: 8px 0 0;">Engine: <span id="modelVersion"></span></p>
+        </div>
+    </div>
+
+    <!-- Tab 2: Gmail Analysis -->
+    <div id="gmail" class="tab-content {{ if eq .ActiveTab "gmail" }}active{{ end }}">
+        <div class="auth-box">
+            <p style="margin-bottom: 16px; color: #4a5568;">Authenticate with Google to fetch recent email headers and analyze them for spam.</p>
+            <a href="/auth/google" class="btn-google">Connect via OAuth 2.0</a>
+        </div>
+
+        {{ if .Results }}
+        <div style="margin-top: 24px;">
+            <h3 style="font-size: 16px; margin-bottom: 12px;">Fetched Gmail Predictions</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Message ID</th>
+                        <th>Subject</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{ range .Results }}
+                    <tr>
+                        <td style="font-family: monospace; font-size: 12px; color: #718096;">{{ .MessageID }}</td>
+                        <td>{{ .Subject }}</td>
+                        <td>
+                            <span class="badge {{ if eq .Prediction "spam" }}spam{{ else }}not_spam{{ end }}">
+                                {{ .Prediction }}
+                            </span>
+                        </td>
+                    </tr>
+                    {{ end }}
+                </tbody>
+            </table>
+        </div>
+        {{ end }}
+    </div>
+</div>
+
+<script>
+function switchTab(tabName) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    
+    document.getElementById(tabName).classList.add('active');
+    if (tabName === 'manual') {
+        document.getElementById('btn-manual').classList.add('active');
+    } else {
+        document.getElementById('btn-gmail').classList.add('active');
+    }
+}
+
+document.getElementById('manualForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const subject = document.getElementById('subject').value;
+    const body = document.getElementById('body').value;
+
+    try {
+        const res = await fetch('/api/check', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ subject, body })
+        });
+
+        if (!res.ok) {
+            alert(`Server returned error status: ${res.status}`);
+            return;
+        }
+
+        const data = await res.json();
+
+        const prediction = data.prediction || data.label || (data.is_spam ? "spam" : "not_spam") || "unknown";
+        const probability = data.spam_probability ?? data.probability ?? (prediction === "spam" ? 0.95 : 0.05);
+        const version = data.model_version || data.version || "v1.0-GoML";
+
+        const badge = document.getElementById('labelBadge');
+        const isSpam = String(prediction).toLowerCase().includes("spam") && !String(prediction).toLowerCase().includes("not");
+        
+        badge.innerText = isSpam ? "SPAM" : "NOT SPAM";
+        badge.className = `badge ${isSpam ? 'spam' : 'not_spam'}`;
+
+        document.getElementById('spamProb').innerText = `${(probability * 100).toFixed(1)}%`;
+        document.getElementById('modelVersion').innerText = version;
+        document.getElementById('resultCard').style.display = 'block';
+    } catch (err) {
+        console.error("Fetch error:", err);
+        alert("Failed to connect to backend service. Check browser console for details.");
+    }
+});
+</script>
+
+</body>
+</html>
