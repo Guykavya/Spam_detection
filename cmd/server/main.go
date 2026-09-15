@@ -5,6 +5,8 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 
 	"spam-email-detector/go-backend/karan/internal/gmailclient"
 	"spam-email-detector/go-backend/karan/internal/mlclient"
@@ -19,8 +21,29 @@ type GmailResult struct {
 }
 
 func main() {
-	// Initialize live Python ML Client pointing to Python service port
-	pythonClient := mlclient.NewClient("http://127.0.0.1:8000")
+	// Go and Python run in the same container on Render. ML_API_URL remains
+	// configurable for local development or a future multi-service deployment.
+	pythonAPIURL := strings.TrimSpace(os.Getenv("ML_API_URL"))
+	if pythonAPIURL == "" {
+		pythonAPIURL = "http://127.0.0.1:8000"
+	}
+	pythonClient := mlclient.NewClient(strings.TrimRight(pythonAPIURL, "/"))
+
+	// Report healthy only when the Go gateway can reach the Python model API.
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		if err := pythonClient.Health(r.Context()); err != nil {
+			http.Error(w, "ML engine unavailable", http.StatusServiceUnavailable)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	})
 
 	// Serve Web UI
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -58,19 +81,33 @@ func main() {
 
 	// OAuth Step 1: Redirect to Google
 	http.HandleFunc("/auth/google", func(w http.ResponseWriter, r *http.Request) {
-		url := gmailclient.GetLoginURL()
+		url, err := gmailclient.GetLoginURL(w)
+		if err != nil {
+			log.Printf("Gmail OAuth configuration error: %v", err)
+			http.Error(w, "Gmail OAuth is not configured", http.StatusServiceUnavailable)
+			return
+		}
 		http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 	})
 
 	// OAuth Step 2: Google Callback Handler
 	http.HandleFunc("/auth/google/callback", func(w http.ResponseWriter, r *http.Request) {
-		state := r.URL.Query().Get("state")
-		if state != gmailclient.OAuthStateString {
+		if !gmailclient.ValidateOAuthState(w, r) {
 			http.Error(w, "Invalid State Token", http.StatusBadRequest)
 			return
 		}
 
-		code := r.URL.Query().Get("code")
+		if oauthError := r.URL.Query().Get("error"); oauthError != "" {
+			http.Error(w, "Google authorization was not completed", http.StatusBadRequest)
+			return
+		}
+
+		code := strings.TrimSpace(r.URL.Query().Get("code"))
+		if code == "" {
+			http.Error(w, "Missing Google authorization code", http.StatusBadRequest)
+			return
+		}
+
 		emails, err := gmailclient.FetchRecentEmails(r.Context(), code)
 		if err != nil {
 			http.Error(w, "Failed to fetch Gmail data: "+err.Error(), http.StatusInternalServerError)
@@ -110,11 +147,13 @@ func main() {
 		tmpl.Execute(w, data)
 	})
 
-	log.Println("==================================================")
-	log.Println(" BCA Minor Project Web Server Started")
-	log.Println(" URL: http://127.0.0.1:8080")
-	log.Println(" Integrated: Go Gateway -> Python ML Engine")
-	log.Println("==================================================")
+	port := strings.TrimSpace(os.Getenv("PORT"))
+	if port == "" {
+		port = "8080"
+	}
+	listenAddress := "0.0.0.0:" + port
 
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Printf("BCA Minor Project Web Server listening on %s", listenAddress)
+	log.Println("Integrated: Go Gateway -> Python ML Engine")
+	log.Fatal(http.ListenAndServe(listenAddress, nil))
 }

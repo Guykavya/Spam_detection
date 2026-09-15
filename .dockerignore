@@ -1,0 +1,16 @@
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+.venv
+venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+Spam_detection/Notebooks
+Spam_detection/tests
+Spam_detection/requirement.txt
+README.md
+**/.DS_Store
+**/Thumbs.db

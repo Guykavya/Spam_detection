@@ -2,8 +2,12 @@ package gmailclient
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/subtle"
 	"encoding/base64"
 	"fmt"
+	"net/http"
+	"os"
 	"strings"
 
 	"golang.org/x/oauth2"
@@ -14,21 +18,102 @@ import (
 	"spam-email-detector/go-backend/karan/internal/mlclient"
 )
 
-// OAuth2 Configuration setup
-var OAuthConfig = &oauth2.Config{
-	ClientID:     "354292213188-irvighttkpmgqkgi7d743c6h5pm0qc0m.apps.googleusercontent.com", // Replace with Cloud Console Credentials
-	ClientSecret: "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", // Replace with Cloud Console Credentials
-	RedirectURL:  "http://127.0.0.1:8080/auth/google/callback",
-	Scopes:       []string{gmail.GmailReadonlyScope},
-	Endpoint:     google.Endpoint,
+const (
+	oauthStateCookieName = "spam_detector_oauth_state"
+	oauthStateMaxAge     = 10 * 60
+)
+
+// oauthConfig loads credentials at runtime so no OAuth secret is committed.
+func oauthConfig() (*oauth2.Config, error) {
+	clientID := strings.TrimSpace(os.Getenv("GOOGLE_CLIENT_ID"))
+	clientSecret := strings.TrimSpace(os.Getenv("GOOGLE_CLIENT_SECRET"))
+	redirectURL := configuredRedirectURL()
+
+	if clientID == "" || clientSecret == "" || redirectURL == "" {
+		return nil, fmt.Errorf(
+			"Google OAuth client credentials and redirect URL must be configured",
+		)
+	}
+
+	return &oauth2.Config{
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		RedirectURL:  redirectURL,
+		Scopes:       []string{gmail.GmailReadonlyScope},
+		Endpoint:     google.Endpoint,
+	}, nil
 }
 
-// State token for CSRF protection
-const OAuthStateString = "random-bca-project-state-token"
+func configuredRedirectURL() string {
+	if redirectURL := strings.TrimSpace(os.Getenv("GOOGLE_REDIRECT_URL")); redirectURL != "" {
+		return redirectURL
+	}
 
-// GetLoginURL generates the Google OAuth URL
-func GetLoginURL() string {
-	return OAuthConfig.AuthCodeURL(OAuthStateString, oauth2.AccessTypeOffline)
+	if renderHostname := strings.TrimSpace(os.Getenv("RENDER_EXTERNAL_HOSTNAME")); renderHostname != "" {
+		return "https://" + renderHostname + "/auth/google/callback"
+	}
+
+	return ""
+}
+
+func useSecureCookies() bool {
+	return strings.HasPrefix(
+		strings.ToLower(configuredRedirectURL()),
+		"https://",
+	)
+}
+
+// GetLoginURL generates a fresh OAuth state token and stores it in a
+// short-lived, HTTP-only cookie for verification after Google's redirect.
+func GetLoginURL(w http.ResponseWriter) (string, error) {
+	config, err := oauthConfig()
+	if err != nil {
+		return "", err
+	}
+
+	stateBytes := make([]byte, 32)
+	if _, err := rand.Read(stateBytes); err != nil {
+		return "", fmt.Errorf("failed to generate OAuth state: %w", err)
+	}
+
+	state := base64.RawURLEncoding.EncodeToString(stateBytes)
+	http.SetCookie(w, &http.Cookie{
+		Name:     oauthStateCookieName,
+		Value:    state,
+		Path:     "/",
+		MaxAge:   oauthStateMaxAge,
+		HttpOnly: true,
+		Secure:   useSecureCookies(),
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	return config.AuthCodeURL(state, oauth2.AccessTypeOffline), nil
+}
+
+// ValidateOAuthState protects the callback against cross-site request forgery.
+func ValidateOAuthState(w http.ResponseWriter, r *http.Request) bool {
+	cookie, err := r.Cookie(oauthStateCookieName)
+	if err != nil {
+		return false
+	}
+
+	returnedState := r.URL.Query().Get("state")
+	valid := returnedState != "" && subtle.ConstantTimeCompare(
+		[]byte(returnedState),
+		[]byte(cookie.Value),
+	) == 1
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     oauthStateCookieName,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   useSecureCookies(),
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	return valid
 }
 
 // EmailMessage contains the fetched email metadata and body content
@@ -41,12 +126,17 @@ type EmailMessage struct {
 
 // FetchRecentEmails obtains the authorization token and reads recent emails
 func FetchRecentEmails(ctx context.Context, code string) ([]mlclient.PredictRequest, error) {
-	token, err := OAuthConfig.Exchange(ctx, code)
+	config, err := oauthConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	token, err := config.Exchange(ctx, code)
 	if err != nil {
 		return nil, fmt.Errorf("failed to exchange token: %v", err)
 	}
 
-	client := OAuthConfig.Client(ctx, token)
+	client := config.Client(ctx, token)
 	srv, err := gmail.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		return nil, fmt.Errorf("unable to retrieve Gmail client: %v", err)
