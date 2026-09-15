@@ -23,6 +23,31 @@ func NewClient(baseURL string) *Client {
 	}
 }
 
+// Health confirms that the Python ML service is available.
+func (c *Client) Health(ctx context.Context) error {
+	httpReq, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodGet,
+		c.BaseURL+"/health",
+		nil,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to construct health request: %w", err)
+	}
+
+	resp, err := c.HTTPClient.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("python ML service unavailable: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("python service status code: %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
 // Predict sends single email payload to the Python ML server
 func (c *Client) Predict(ctx context.Context, req PredictRequest) (*PredictResponse, error) {
 	jsonData, err := json.Marshal(req)

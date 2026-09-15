@@ -25,16 +25,8 @@ tokens.json
 *.key
 
 # Training datasets
-Python-services/data/raw/
-Python-services/data/clean/
-
-# Downloaded Gmail messages
-go-web/downloaded_emails/
-
-# Go build output
-go-web/bin/
-*.exe
-*.test
+data/raw/
+data/clean/
 
 # Logs and operating-system files
 *.log

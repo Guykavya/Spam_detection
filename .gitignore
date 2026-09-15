@@ -25,14 +25,15 @@ tokens.json
 *.key
 
 # Training datasets
-Python-services/data/raw/
-Python-services/data/clean/
+Spam_detection/data/raw/
+Spam_detection/data/clean/
 
 # Downloaded Gmail messages
-go-web/downloaded_emails/
+downloaded_emails/
 
 # Go build output
-go-web/bin/
+bin/
+dist/
 *.exe
 *.test
 
