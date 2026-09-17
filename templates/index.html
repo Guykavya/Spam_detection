@@ -6,42 +6,46 @@
     <title>Email Spam Detection System - BCA Minor Project</title>
     <style>
         * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { background: #f4f7f9; margin: 0; padding: 40px 20px; color: #2d3748; }
-        .container { max-width: 800px; margin: 0 auto; background: #ffffff; padding: 36px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        body { background: #0f172a; margin: 0; padding: 40px 20px; color: #f1f5f9; }
+        .container { max-width: 800px; margin: 0 auto; background: #1e293b; padding: 36px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid #334155; }
         
-        .header { text-align: center; border-bottom: 2px solid #edf2f7; padding-bottom: 20px; margin-bottom: 24px; }
-        .header h1 { margin: 0; font-size: 24px; color: #1a202c; font-weight: 700; }
-        .header p { margin: 8px 0 0; font-size: 13px; color: #718096; font-weight: 500; }
+        .header { text-align: center; border-bottom: 2px solid #334155; padding-bottom: 20px; margin-bottom: 24px; }
+        .header h1 { margin: 0; font-size: 24px; color: #f8fafc; font-weight: 700; }
+        .header p { margin: 8px 0 0; font-size: 13px; color: #94a3b8; font-weight: 500; }
         
-        .tabs { display: flex; gap: 12px; margin-bottom: 24px; background: #edf2f7; padding: 4px; border-radius: 8px; }
-        .tab-btn { flex: 1; padding: 12px; border: none; background: transparent; color: #4a5568; font-weight: 600; border-radius: 6px; cursor: pointer; transition: all 0.2s ease; }
-        .tab-btn.active { background: #ffffff; color: #2b6cb0; box-shadow: 0 2px 4px rgba(0,0,0,0.06); }
+        .tabs { display: flex; gap: 12px; margin-bottom: 24px; background: #0f172a; padding: 4px; border-radius: 8px; border: 1px solid #334155; }
+        .tab-btn { flex: 1; padding: 12px; border: none; background: transparent; color: #94a3b8; font-weight: 600; border-radius: 6px; cursor: pointer; transition: all 0.2s ease; }
+        .tab-btn.active { background: #334155; color: #38bdf8; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
         
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         
         .form-group { margin-bottom: 18px; }
-        label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 14px; color: #2d3748; }
-        input[type="text"], textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e0; border-radius: 8px; font-size: 14px; transition: border-color 0.2s; }
-        input[type="text"]:focus, textarea:focus { outline: none; border-color: #3182ce; box-shadow: 0 0 0 3px rgba(66,153,225,0.15); }
+        label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 14px; color: #cbd5e1; }
+        input[type="text"], textarea { width: 100%; padding: 12px; background: #0f172a; border: 1px solid #334155; border-radius: 8px; font-size: 14px; color: #f8fafc; transition: border-color 0.2s; }
+        input[type="text"]:focus, textarea:focus { outline: none; border-color: #38bdf8; box-shadow: 0 0 0 3px rgba(56,189,248,0.2); }
         
-        button.submit-btn { width: 100%; padding: 12px; background: #3182ce; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 15px; transition: background 0.2s; }
-        button.submit-btn:hover { background: #2b6cb0; }
+        .btn-group { display: flex; gap: 12px; margin-top: 10px; }
+        button.submit-btn { flex: 2; padding: 12px; background: #0284c7; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 15px; transition: background 0.2s; }
+        button.submit-btn:hover { background: #0369a1; }
         
-        .result-card { margin-top: 24px; padding: 20px; border-radius: 8px; background: #f7fafc; border: 1px solid #e2e8f0; display: none; }
+        button.clear-btn { flex: 1; padding: 12px; background: #334155; color: #cbd5e1; border: 1px solid #475569; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 15px; transition: all 0.2s; }
+        button.clear-btn:hover { background: #475569; color: #ffffff; }
+
+        .result-card { margin-top: 24px; padding: 20px; border-radius: 8px; background: #0f172a; border: 1px solid #334155; display: none; }
         .badge { padding: 6px 12px; border-radius: 20px; font-weight: 700; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; display: inline-block; }
-        .badge.spam { background: #fed7d7; color: #c53030; }
-        .badge.not_spam { background: #c6f6d5; color: #22543d; }
+        .badge.spam { background: #7f1d1d; color: #fca5a5; border: 1px solid #991b1b; }
+        .badge.not_spam { background: #064e3b; color: #6ee7b7; border: 1px solid #065f46; }
         
         .auth-box { text-align: center; padding: 24px 0; }
-        .btn-google { background: #4285F4; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block; transition: background 0.2s; }
-        .btn-google:hover { background: #3367d6; }
+        .btn-google { background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block; transition: background 0.2s; }
+        .btn-google:hover { background: #1d4ed8; }
 
-        table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 16px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+        table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 16px; border: 1px solid #334155; border-radius: 8px; overflow: hidden; }
         th, td { padding: 12px 16px; text-align: left; }
-        th { background: #edf2f7; font-weight: 600; font-size: 13px; color: #4a5568; }
-        td { border-top: 1px solid #e2e8f0; font-size: 14px; }
-        tr:hover td { background: #f7fafc; }
+        th { background: #0f172a; font-weight: 600; font-size: 13px; color: #94a3b8; }
+        td { border-top: 1px solid #334155; font-size: 14px; color: #e2e8f0; }
+        tr:hover td { background: #0f172a; }
     </style>
 </head>
 <body>
@@ -68,27 +72,30 @@
                 <label for="body">Email Body Content</label>
                 <textarea id="body" rows="5" placeholder="Paste full email text here..." required></textarea>
             </div>
-            <button type="submit" class="submit-btn">Run ML Classification</button>
+            <div class="btn-group">
+                <button type="submit" class="submit-btn">Run ML Classification</button>
+                <button type="button" class="clear-btn" onclick="clearForm()">Clear Email</button>
+            </div>
         </form>
 
         <div id="resultCard" class="result-card">
-            <h3 style="margin-top: 0; font-size: 16px; color: #2d3748;">Analysis Output</h3>
+            <h3 style="margin-top: 0; font-size: 16px; color: #f8fafc;">Analysis Output</h3>
             <p style="margin: 8px 0;">Classification: <span id="labelBadge" class="badge"></span></p>
-            <p style="margin: 8px 0;">Spam Probability: <strong id="spamProb"></strong></p>
-            <p style="font-size: 12px; color: #a0aec0; margin: 8px 0 0;">Engine: <span id="modelVersion"></span></p>
+            <p style="margin: 8px 0;">Spam Probability: <strong id="spamProb" style="color: #38bdf8;"></strong></p>
+            <p style="font-size: 12px; color: #64748b; margin: 8px 0 0;">Engine: <span id="modelVersion"></span></p>
         </div>
     </div>
 
     <!-- Tab 2: Gmail Analysis -->
     <div id="gmail" class="tab-content {{ if eq .ActiveTab "gmail" }}active{{ end }}">
         <div class="auth-box">
-            <p style="margin-bottom: 16px; color: #4a5568;">Authenticate with Google to fetch recent email headers and analyze them for spam.</p>
+            <p style="margin-bottom: 16px; color: #94a3b8;">Authenticate with Google to fetch recent email headers and analyze them for spam.</p>
             <a href="/auth/google" class="btn-google">Connect via OAuth 2.0</a>
         </div>
 
         {{ if .Results }}
         <div style="margin-top: 24px;">
-            <h3 style="font-size: 16px; margin-bottom: 12px;">Fetched Gmail Predictions</h3>
+            <h3 style="font-size: 16px; margin-bottom: 12px; color: #f8fafc;">Fetched Gmail Predictions</h3>
             <table>
                 <thead>
                     <tr>
@@ -100,7 +107,7 @@
                 <tbody>
                     {{ range .Results }}
                     <tr>
-                        <td style="font-family: monospace; font-size: 12px; color: #718096;">{{ .MessageID }}</td>
+                        <td style="font-family: monospace; font-size: 12px; color: #64748b;">{{ .MessageID }}</td>
                         <td>{{ .Subject }}</td>
                         <td>
                             <span class="badge {{ if eq .Prediction "spam" }}spam{{ else }}not_spam{{ end }}">
@@ -127,6 +134,12 @@ function switchTab(tabName) {
     } else {
         document.getElementById('btn-gmail').classList.add('active');
     }
+}
+
+function clearForm() {
+    document.getElementById('subject').value = '';
+    document.getElementById('body').value = '';
+    document.getElementById('resultCard').style.display = 'none';
 }
 
 document.getElementById('manualForm').addEventListener('submit', async (e) => {
